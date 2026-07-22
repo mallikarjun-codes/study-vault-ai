@@ -4,13 +4,17 @@ import SourceCard from './SourceCard.jsx';
 
 export default function ChatMessage({ message }) {
   const isUser = message.role === 'user';
-  const [showSources, setShowSources] = useState(true);
+  // Collapsed by default for clean user-facing presentation
+  const [showSources, setShowSources] = useState(false);
 
-  const sources = message.sources
+  const rawSources = message.sources
     ? typeof message.sources === 'string'
       ? JSON.parse(message.sources)
       : message.sources
     : [];
+
+  // Sort sources by score if numeric scores are provided
+  const sources = [...rawSources].sort((a, b) => (b.score || 0) - (a.score || 0));
 
   return (
     <div className={`flex gap-3 my-4 ${isUser ? 'justify-end' : 'justify-start'}`}>
@@ -20,7 +24,7 @@ export default function ChatMessage({ message }) {
         </div>
       )}
 
-      <div className={`max-w-[82%] space-y-2`}>
+      <div className="max-w-[85%] space-y-2">
         {/* Message Content Bubble */}
         <div
           className={`p-4 rounded-2xl text-sm leading-relaxed ${
@@ -32,7 +36,7 @@ export default function ChatMessage({ message }) {
           <div className="whitespace-pre-wrap">{message.content}</div>
         </div>
 
-        {/* Assistant Sources Citations */}
+        {/* Collapsible Assistant Sources Citations */}
         {!isUser && sources && sources.length > 0 && (
           <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-3 space-y-2">
             <button
@@ -41,15 +45,21 @@ export default function ChatMessage({ message }) {
             >
               <div className="flex items-center gap-1.5">
                 <Layers className="w-3.5 h-3.5 text-blue-400" />
-                <span>Retrieved Context Sources ({sources.length})</span>
+                <span>
+                  {showSources ? 'Hide sources' : `View sources (${sources.length})`}
+                </span>
               </div>
-              {showSources ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              {showSources ? (
+                <ChevronUp className="w-3.5 h-3.5 text-slate-400" />
+              ) : (
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+              )}
             </button>
 
             {showSources && (
-              <div className="flex flex-wrap gap-2 pt-1">
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-800/60">
                 {sources.map((source, idx) => (
-                  <SourceCard key={idx} source={source} />
+                  <SourceCard key={idx} source={source} rank={idx + 1} />
                 ))}
               </div>
             )}

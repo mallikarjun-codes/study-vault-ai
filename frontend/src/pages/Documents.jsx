@@ -1,7 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useNavigate, Link } from 'react-router-dom';
-import { BookOpen, LogOut, UploadCloud, FileText, Loader2, AlertCircle, RefreshCw, LayoutDashboard } from 'lucide-react';
+import {
+  BookOpen,
+  LogOut,
+  UploadCloud,
+  FileText,
+  Loader2,
+  AlertCircle,
+  RefreshCw,
+  LayoutDashboard,
+  MessageSquare,
+} from 'lucide-react';
 import { getDocuments, deleteDocument } from '../services/documentApi.js';
 import DocumentCard from '../components/DocumentCard.jsx';
 import UploadModal from '../components/UploadModal.jsx';
@@ -73,6 +83,13 @@ export default function DocumentsPage() {
                 <FileText className="w-3.5 h-3.5" />
                 Documents
               </Link>
+              <Link
+                to="/chat"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                AI Study Chat
+              </Link>
             </nav>
           </div>
 
@@ -136,9 +153,19 @@ export default function DocumentsPage() {
 
         {/* Content Area */}
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 text-blue-500 animate-spin mb-3" />
-            <p className="text-slate-400 text-sm">Loading your document library...</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 space-y-4 animate-pulse">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-slate-800" />
+                  <div className="space-y-2 flex-1">
+                    <div className="h-4 bg-slate-800 rounded w-3/4" />
+                    <div className="h-3 bg-slate-800/60 rounded w-1/2" />
+                  </div>
+                </div>
+                <div className="h-10 bg-slate-800/40 rounded-xl" />
+              </div>
+            ))}
           </div>
         ) : documents.length === 0 ? (
           /* Empty State */

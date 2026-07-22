@@ -12,7 +12,17 @@ import { getDocuments } from '../services/documentApi.js';
 import ChatSidebar from '../components/ChatSidebar.jsx';
 import ChatMessage from '../components/ChatMessage.jsx';
 import ChatInput from '../components/ChatInput.jsx';
-import { BookOpen, LogOut, FileText, LayoutDashboard, Sparkles, MessageSquare } from 'lucide-react';
+import {
+  BookOpen,
+  LogOut,
+  FileText,
+  LayoutDashboard,
+  Sparkles,
+  MessageSquare,
+  Plus,
+  Bot,
+  Loader2,
+} from 'lucide-react';
 
 export default function ChatPage() {
   const { user, logout } = useAuth();
@@ -29,7 +39,6 @@ export default function ChatPage() {
 
   const messagesEndRef = useRef(null);
 
-  // Auto-scroll to bottom of message list
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -38,7 +47,7 @@ export default function ChatPage() {
     scrollToBottom();
   }, [messages, isSending]);
 
-  // Load sessions list & documents on mount
+  // Load initial chat sessions & indexed documents
   useEffect(() => {
     const loadInitialData = async () => {
       try {
@@ -55,7 +64,6 @@ export default function ChatPage() {
         } else if (sessionList.length > 0) {
           navigate(`/chat/${sessionList[0].id}`, { replace: true });
         } else {
-          // Auto create first chat session if user has none
           const newSess = await createChatSession('New Study Chat');
           setSessions([newSess]);
           navigate(`/chat/${newSess.id}`, { replace: true });
@@ -117,7 +125,6 @@ export default function ChatPage() {
   const handleSendMessage = async ({ content, documentIds }) => {
     if (!activeSession) return;
 
-    // Optimistic User Message
     const tempUserMsg = {
       id: `temp-${Date.now()}`,
       role: 'user',
@@ -134,23 +141,25 @@ export default function ChatPage() {
         documentIds,
       });
 
-      // Replace temp with persistent message, append assistant message
-      setMessages((prev) => [...prev.filter((m) => m.id !== tempUserMsg.id), userMessage, assistantMessage]);
+      setMessages((prev) => [
+        ...prev.filter((m) => m.id !== tempUserMsg.id),
+        userMessage,
+        assistantMessage,
+      ]);
 
-      // Refresh session list titles if first message
       const updatedSessions = await fetchChatSessions();
       setSessions(updatedSessions);
     } catch (err) {
       console.error('Failed to send message:', err);
-      setError('Failed to get answer. Please check your connection or Groq/Embedding configuration.');
-    } finally {
+      setError('Failed to get answer. Please check your connection or Pinecone/Groq configuration.');
+    } fontFinally: {
       setIsSending(false);
     }
   };
 
   return (
     <div className="h-screen bg-slate-950 text-slate-100 flex flex-col overflow-hidden">
-      {/* Top Header Navigation */}
+      {/* Navigation Header */}
       <header className="border-b border-slate-800 bg-slate-900/90 backdrop-blur flex-shrink-0 z-10">
         <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-6">
@@ -158,7 +167,9 @@ export default function ChatPage() {
               <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
                 <BookOpen className="w-4 h-4 text-white" />
               </div>
-              <span className="font-bold text-white text-sm tracking-tight">Study Vault AI</span>
+              <span className="font-bold text-white text-sm tracking-tight">
+                Study Vault AI
+              </span>
             </Link>
 
             <nav className="flex items-center gap-1">
@@ -187,6 +198,17 @@ export default function ChatPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Top Bar Quick + New Chat Button */}
+            <button
+              onClick={handleCreateSession}
+              disabled={isLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 transition-all shadow-sm"
+              title="Start a new study chat session"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>New Chat</span>
+            </button>
+
             <span className="text-xs text-slate-400">{user?.name}</span>
             <button
               onClick={() => {
@@ -202,9 +224,9 @@ export default function ChatPage() {
         </div>
       </header>
 
-      {/* Main Content Body */}
+      {/* Main Workspace Body: Always Visible Sidebar + Chat Area */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Sidebar */}
+        {/* Chat Sidebar (Always Visible on Left) */}
         <ChatSidebar
           sessions={sessions}
           activeSessionId={activeSession?.id}
@@ -214,7 +236,7 @@ export default function ChatPage() {
           isLoading={isLoading}
         />
 
-        {/* Chat Thread & Input Area */}
+        {/* Chat Conversation Thread & Input Area */}
         <main className="flex-1 flex flex-col bg-slate-950 overflow-hidden">
           {error && (
             <div className="bg-red-500/10 border-b border-red-500/20 px-6 py-2 text-xs text-red-400 flex items-center justify-between">
@@ -225,27 +247,54 @@ export default function ChatPage() {
             </div>
           )}
 
+          {/* Active Session Title Sub-Header */}
+          <div className="px-6 py-2 bg-slate-900/50 border-b border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="w-3.5 h-3.5 text-blue-400" />
+              <span className="font-semibold text-slate-200">
+                {activeSession?.title || 'Study Chat'}
+              </span>
+            </div>
+            <span className="text-[11px] text-slate-500">
+              {messages.length} message{messages.length === 1 ? '' : 's'}
+            </span>
+          </div>
+
           {/* Messages Thread */}
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             {messages.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-center max-w-md mx-auto space-y-4">
+              <div className="h-full flex flex-col items-center justify-center text-center max-w-md mx-auto space-y-4 my-auto">
                 <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500/20 to-indigo-600/20 border border-blue-500/20 flex items-center justify-center text-blue-400">
                   <Sparkles className="w-7 h-7" />
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-white">Ask Study Vault AI</h2>
-                  <p className="text-slate-400 text-xs mt-1">
-                    Ask any question about your uploaded lecture notes, textbooks, or documents. Your assistant answers strictly from your context with citations!
+                  <p className="text-slate-400 text-xs mt-1 leading-relaxed">
+                    Ask any question about your uploaded lecture notes, textbooks, or papers. Your AI assistant retrieves exact context chunks from Pinecone and generates source-cited answers!
                   </p>
                 </div>
               </div>
             ) : (
               messages.map((msg, idx) => <ChatMessage key={msg.id || idx} message={msg} />)
             )}
+
+            {/* Assistant Thinking Loading Indicator */}
+            {isSending && (
+              <div className="flex gap-3 my-4 justify-start">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white flex-shrink-0 shadow-md shadow-blue-500/20">
+                  <Bot className="w-4 h-4" />
+                </div>
+                <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl rounded-tl-none text-xs text-slate-400 flex items-center gap-2.5">
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+                  <span>Searching vault & generating answer...</span>
+                </div>
+              </div>
+            )}
+
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input Box */}
+          {/* Chat Input Container */}
           <div className="p-4 border-t border-slate-800 bg-slate-900/60 max-w-4xl mx-auto w-full">
             <ChatInput
               onSendMessage={handleSendMessage}
