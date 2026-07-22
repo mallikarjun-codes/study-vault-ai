@@ -11,5 +11,8 @@ export const env = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
   maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '10485760', 10),
   uploadTempDir: process.env.UPLOAD_TEMP_DIR || 'uploads/temp',
+  embeddingApiKey: process.env.EMBEDDING_API_KEY || '',
+  embeddingModel: process.env.EMBEDDING_MODEL || 'text-embedding-004',
+  chunkSize: parseInt(process.env.CHUNK_SIZE || '700', 10),
+  chunkOverlap: parseInt(process.env.CHUNK_OVERLAP || '100', 10),
 };
-

@@ -32,7 +32,7 @@ export async function checkPineconeConnection() {
       console.log(`Pinecone index "${indexName}" not found. Initializing creation...`);
       await pc.createIndex({
         name: indexName,
-        dimension: 768, // Placeholder dimension until embedding model is finalized in Phase 4
+        dimension: 768, // Finalized in Phase 4: matches Google Gemini text-embedding-004
         metric: 'cosine',
         spec: {
           serverless: {
@@ -49,4 +49,31 @@ export async function checkPineconeConnection() {
     console.error('Pinecone connection error:', error.message);
     return false;
   }
+}
+
+/**
+ * Returns a reference handle to the configured Pinecone index.
+ */
+export function getPineconeIndex() {
+  const pc = getPineconeClient();
+  return pc.index(env.pineconeIndexName);
+}
+
+/**
+ * Upserts vector records with metadata into Pinecone.
+ *
+ * @param {Array<{ id: string, values: number[], metadata: object }>} vectors - Vector objects array.
+ * @param {string} [namespace=''] - Namespace to isolate vectors (e.g. userId).
+ * @returns {Promise<string[]>} Array of upserted vector IDs.
+ */
+export async function upsertVectors(vectors, namespace = '') {
+  if (!Array.isArray(vectors) || vectors.length === 0) {
+    return [];
+  }
+
+  const index = getPineconeIndex();
+  const target = namespace ? index.namespace(namespace) : index;
+
+  await target.upsert(vectors);
+  return vectors.map((v) => v.id);
 }

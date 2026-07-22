@@ -1,6 +1,7 @@
 import {
   createDocumentRecord,
   updateDocumentStatus,
+  processDocumentIngestion,
   getUserDocuments,
   deleteDocument as deleteDocService,
 } from '../services/documentService.js';
@@ -9,7 +10,10 @@ import { removeFileSafely } from '../utils/fileUtils.js';
 
 /**
  * POST /api/documents/upload
- * Handles document file upload, creates record, extracts text, cleans up temp file.
+ * Handles document file upload, text extraction, chunking, embedding generation,
+ * Postgres chunk storage, Pinecone vector indexing, and temp file cleanup.
+ *
+ * Extended in Phase 4 to trigger chunking + embedding + vector storage after text extraction.
  */
 export async function uploadDocument(req, res, next) {
   let docRecord = null;
@@ -30,42 +34,62 @@ export async function uploadDocument(req, res, next) {
       fileSize: size,
     });
 
+    let extractedText = '';
+    let textLength = 0;
+
+    // 2. Extract and clean text from document file
     try {
-      // 2. Extract and clean text from document
-      const { extractedText, textLength } = await extractTextFromFile({
+      const extractionResult = await extractTextFromFile({
         filePath,
         mimeType: mimetype,
         originalName: originalname,
       });
+      extractedText = extractionResult.extractedText;
+      textLength = extractionResult.textLength;
+    } catch (extractError) {
+      if (docRecord) {
+        await updateDocumentStatus(docRecord.id, { status: 'FAILED' });
+      }
 
-      // 3. Mark status as "READY" and store text length as metadata
-      const updatedDoc = await updateDocumentStatus(docRecord.id, {
-        status: 'READY',
+      await removeFileSafely(filePath);
+
+      return res.status(400).json({
+        error: extractError.message || 'Failed to extract text from document.',
+        documentId: docRecord ? docRecord.id : null,
+      });
+    }
+
+    // Safely remove temporary file from disk immediately after extraction
+    await removeFileSafely(filePath);
+
+    // 3. Trigger Phase 4 Chunking + Embedding + Pinecone Storage pipeline
+    try {
+      const updatedDoc = await processDocumentIngestion({
+        documentId: docRecord.id,
+        userId,
+        extractedText,
         textLength,
       });
 
-      // 4. Safely remove temporary file from disk
-      await removeFileSafely(filePath);
-
-      // 5. Generate first ~300 chars preview of extracted text
       const extractedTextPreview = extractedText.slice(0, 300);
 
       return res.status(201).json({
         document: updatedDoc,
         extractedTextPreview,
       });
-    } catch (extractError) {
-      // Mark document as FAILED if text extraction failed
-      if (docRecord) {
-        await updateDocumentStatus(docRecord.id, { status: 'FAILED' });
-      }
+    } catch (ingestError) {
+      console.error(`Ingestion indexing failed for document ${docRecord.id}:`, ingestError);
 
-      // Safely cleanup temporary file
-      await removeFileSafely(filePath);
+      // If chunking / embedding / Pinecone fails, mark status = "FAILED"
+      // while keeping Phase 3 extracted text metadata intact
+      const failedDoc = await updateDocumentStatus(docRecord.id, {
+        status: 'FAILED',
+        textLength,
+      });
 
-      return res.status(400).json({
-        error: extractError.message || 'Failed to extract text from document.',
-        documentId: docRecord ? docRecord.id : null,
+      return res.status(500).json({
+        error: `Text extraction succeeded (${textLength} chars), but chunking/vector indexing failed: ${ingestError.message}`,
+        document: failedDoc,
       });
     }
   } catch (error) {
