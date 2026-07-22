@@ -1,0 +1,45 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String          @id @default(uuid())
+  name         String
+  email        String          @unique
+  passwordHash String
+  createdAt    DateTime        @default(now())
+  documents    Document[]
+  chunks       DocumentChunk[]
+}
+
+model Document {
+  id        String          @id @default(uuid())
+  userId    String
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  mimeType  String
+  status    String          @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+  createdAt DateTime        @default(now())
+  chunks    DocumentChunk[]
+}
+
+model DocumentChunk {
+  id               String   @id @default(uuid())
+  documentId       String
+  document         Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content          String
+  chunkIndex       Int
+  pageNumber       Int?
+  pineconeVectorId String   // Reference ID to the vector stored in Pinecone
+  createdAt        DateTime @default(now())
+
+  @@index([documentId])
+  @@index([userId])
+}
