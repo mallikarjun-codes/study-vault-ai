@@ -15,4 +15,7 @@ export const env = {
   embeddingModel: process.env.EMBEDDING_MODEL || 'text-embedding-004',
   chunkSize: parseInt(process.env.CHUNK_SIZE || '700', 10),
   chunkOverlap: parseInt(process.env.CHUNK_OVERLAP || '100', 10),
+  groqApiKey: process.env.GROQ_API_KEY || '',
+  groqModel: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
+  topK: parseInt(process.env.TOP_K || '8', 10),
 };

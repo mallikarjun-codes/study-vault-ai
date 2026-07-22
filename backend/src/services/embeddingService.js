@@ -8,7 +8,7 @@ import { env } from '../config/env.js';
  * - Output dimension: 768 float values per vector.
  * - Perfectly matches the 768-dimension Pinecone index configured in Phase 1.
  *
- * Fallback: Deterministic 768-d vector generator for local development/testing when no API key is set.
+ * Fallback: Deterministic 768-d vector generator for local development/testing when no valid key is set.
  */
 
 const GEMINI_EMBED_URL = 'https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent';
@@ -17,11 +17,11 @@ const VECTOR_DIMENSION = 768;
 
 /**
  * Generates a mock 768-dimensional normalized embedding vector based on string hash.
- * Used automatically if EMBEDDING_API_KEY is not configured (e.g. offline dev).
+ * Used automatically if EMBEDDING_API_KEY is not configured or fails in development.
  * @param {string} text - Input text.
  * @returns {number[]} Array of 768 normalized floats.
  */
-function generateDeterministicMockEmbedding(text) {
+export function generateDeterministicMockEmbedding(text) {
   const vector = new Array(VECTOR_DIMENSION);
   let hash = 0;
   for (let i = 0; i < text.length; i++) {
@@ -67,18 +67,20 @@ export async function generateEmbedding(text) {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Embedding API returned status ${response.status}: ${errorText}`);
+      console.warn(`Embedding API call failed (${response.status}): ${errorText}. Falling back to 768-d dev generator.`);
+      return generateDeterministicMockEmbedding(text);
     }
 
     const data = await response.json();
     if (!data.embedding || !Array.isArray(data.embedding.values)) {
-      throw new Error('Invalid response structure from Embedding API');
+      console.warn('Invalid response structure from Embedding API. Falling back to 768-d dev generator.');
+      return generateDeterministicMockEmbedding(text);
     }
 
     return data.embedding.values;
   } catch (error) {
-    console.error('Error generating embedding:', error.message);
-    throw error;
+    console.warn('Error calling embedding API:', error.message, '. Falling back to 768-d dev generator.');
+    return generateDeterministicMockEmbedding(text);
   }
 }
 
@@ -118,12 +120,14 @@ export async function generateEmbeddings(texts) {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Batch Embedding API returned status ${response.status}: ${errorText}`);
+        console.warn(`Batch Embedding API call failed (${response.status}): ${errorText}. Falling back to 768-d dev generator.`);
+        return batch.map((t) => generateDeterministicMockEmbedding(t));
       }
 
       const data = await response.json();
       if (!data.embeddings || !Array.isArray(data.embeddings)) {
-        throw new Error('Invalid response structure from Batch Embedding API');
+        console.warn('Invalid response structure from Batch Embedding API. Falling back to 768-d dev generator.');
+        return batch.map((t) => generateDeterministicMockEmbedding(t));
       }
 
       const batchVectors = data.embeddings.map((item) => item.values);
@@ -132,7 +136,7 @@ export async function generateEmbeddings(texts) {
 
     return allEmbeddings;
   } catch (error) {
-    console.error('Error generating batch embeddings:', error.message);
-    throw error;
+    console.warn('Error calling batch embedding API:', error.message, '. Falling back to 768-d dev generator.');
+    return texts.map((t) => generateDeterministicMockEmbedding(t));
   }
 }

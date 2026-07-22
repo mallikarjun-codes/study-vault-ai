@@ -6,6 +6,7 @@ import { checkDbConnection } from './config/db.js';
 import { checkPineconeConnection } from './config/pinecone.js';
 import authRoutes from './routes/authRoutes.js';
 import documentRoutes from './routes/documentRoutes.js';
+import chatRoutes from './routes/chatRoutes.js';
 import { errorMiddleware } from './middleware/errorMiddleware.js';
 
 const app = express();
@@ -40,6 +41,7 @@ app.get('/api/health', async (req, res) => {
 // ─── API Routes ─────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
 app.use('/api/documents', documentRoutes);
+app.use('/api/chats', chatRoutes);
 
 // ─── Centralized Error Handler (must be last) ────────────────────────────────
 app.use(errorMiddleware);

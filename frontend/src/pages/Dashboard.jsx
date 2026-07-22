@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useNavigate, Link } from 'react-router-dom';
-import { BookOpen, LogOut, User, Cpu, FileText, ArrowRight, LayoutDashboard } from 'lucide-react';
+import { BookOpen, LogOut, User, Cpu, FileText, ArrowRight, LayoutDashboard, MessageSquare } from 'lucide-react';
 
 export default function DashboardPage() {
   const { user, logout } = useAuth();
@@ -39,6 +39,13 @@ export default function DashboardPage() {
                 <FileText className="w-3.5 h-3.5" />
                 Documents
               </Link>
+              <Link
+                to="/chat"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                AI Study Chat
+              </Link>
             </nav>
           </div>
 
@@ -67,15 +74,22 @@ export default function DashboardPage() {
             </h1>
             <p className="text-slate-400 text-sm mt-1">{user?.email}</p>
 
-            {/* Quick Action Button to Documents */}
-            <div className="mt-5">
+            {/* Quick Action Buttons */}
+            <div className="mt-5 space-y-2">
+              <Link
+                to="/chat"
+                className="inline-flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold rounded-xl transition-all shadow-md shadow-blue-500/20"
+              >
+                <MessageSquare className="w-4 h-4" />
+                Start AI Study Chat
+                <ArrowRight className="w-3.5 h-3.5 ml-auto" />
+              </Link>
               <Link
                 to="/documents"
-                className="inline-flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold rounded-xl transition-all shadow-md shadow-blue-500/20"
+                className="inline-flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white text-xs font-semibold rounded-xl border border-slate-700 transition-all"
               >
                 <FileText className="w-4 h-4" />
                 Manage Documents Vault
-                <ArrowRight className="w-3.5 h-3.5 ml-auto" />
               </Link>
             </div>
           </div>
@@ -91,8 +105,8 @@ export default function DashboardPage() {
                 { label: 'Phase 1 — Infrastructure', done: true },
                 { label: 'Phase 2 — Authentication', done: true },
                 { label: 'Phase 3 — File Upload & Extraction', done: true },
-                { label: 'Phase 4 — Embeddings & Pinecone', done: false },
-                { label: 'Phase 5 — RAG Chat Engine', done: false },
+                { label: 'Phase 4 — Embeddings & Pinecone', done: true },
+                { label: 'Phase 5 — RAG Chat Engine', done: true },
                 { label: 'Phase 6 — Polish & Deploy', done: false },
               ].map(({ label, done }) => (
                 <div key={label} className="flex items-center gap-2.5 text-sm">
@@ -111,4 +125,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-

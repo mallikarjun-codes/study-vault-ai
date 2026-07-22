@@ -77,3 +77,35 @@ export async function upsertVectors(vectors, namespace = '') {
   await target.upsert(vectors);
   return vectors.map((v) => v.id);
 }
+
+/**
+ * Queries Pinecone for nearest vector matches under a specified namespace.
+ * Added in Phase 5.
+ *
+ * @param {number[]} queryVector - The 768-d query embedding vector.
+ * @param {string} [namespace=''] - Namespace to query within (e.g. userId).
+ * @param {number} [topK=8] - Number of top matches to return.
+ * @param {object} [filter=null] - Optional metadata filter (e.g. documentId filtering).
+ * @returns {Promise<Array<{ id: string, score: number, metadata: object }>>} Array of matching objects.
+ */
+export async function queryVectors(queryVector, namespace = '', topK = 8, filter = null) {
+  if (!queryVector || !Array.isArray(queryVector)) {
+    return [];
+  }
+
+  const index = getPineconeIndex();
+  const target = namespace ? index.namespace(namespace) : index;
+
+  const queryOptions = {
+    vector: queryVector,
+    topK,
+    includeMetadata: true,
+  };
+
+  if (filter && Object.keys(filter).length > 0) {
+    queryOptions.filter = filter;
+  }
+
+  const response = await target.query(queryOptions);
+  return response.matches || [];
+}

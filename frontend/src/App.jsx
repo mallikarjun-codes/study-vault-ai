@@ -6,6 +6,7 @@ import LoginPage from './pages/Login.jsx';
 import RegisterPage from './pages/Register.jsx';
 import DashboardPage from './pages/Dashboard.jsx';
 import DocumentsPage from './pages/Documents.jsx';
+import ChatPage from './pages/Chat.jsx';
 
 export default function App() {
   return (
@@ -30,6 +31,22 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <DocumentsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/chat"
+            element={
+              <ProtectedRoute>
+                <ChatPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/chat/:sessionId"
+            element={
+              <ProtectedRoute>
+                <ChatPage />
               </ProtectedRoute>
             }
           />

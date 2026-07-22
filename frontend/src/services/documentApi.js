@@ -36,6 +36,8 @@ export async function getDocuments() {
   return response.data.documents || [];
 }
 
+export const fetchDocuments = getDocuments;
+
 /**
  * Deletes a document by ID.
  * 
