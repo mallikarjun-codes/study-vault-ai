@@ -1,7 +1,7 @@
 import { prisma } from '../config/db.js';
 import { chunkText } from './chunkingService.js';
 import { generateEmbeddings } from './embeddingService.js';
-import { upsertVectors } from '../config/pinecone.js';
+import { upsertVectors, deleteVectors } from '../config/pinecone.js';
 import { env } from '../config/env.js';
 
 /**
@@ -35,11 +35,8 @@ export async function updateDocumentStatus(id, { status, textLength = null }) {
 /**
  * Handles text chunking, embedding generation, Postgres DocumentChunk storage,
  * and Pinecone vector upsertion for an extracted document.
- *
- * Added in Phase 4.
  */
 export async function processDocumentIngestion({ documentId, userId, extractedText, textLength }) {
-  // 1. Chunk extracted text using chunkingService
   const chunks = chunkText(extractedText, {
     chunkSize: env.chunkSize,
     chunkOverlap: env.chunkOverlap,
@@ -52,11 +49,9 @@ export async function processDocumentIngestion({ documentId, userId, extractedTe
     });
   }
 
-  // 2. Generate embeddings for all chunk texts using embeddingService
   const chunkTexts = chunks.map((c) => c.content);
   const embeddings = await generateEmbeddings(chunkTexts);
 
-  // 3. Store chunk records in Postgres DocumentChunk table
   const chunkRecords = await prisma.$transaction(
     chunks.map((chunk) =>
       prisma.documentChunk.create({
@@ -70,7 +65,6 @@ export async function processDocumentIngestion({ documentId, userId, extractedTe
     )
   );
 
-  // 4. Prepare vectors for Pinecone upsert with metadata
   const vectors = chunkRecords.map((chunkRecord, idx) => ({
     id: chunkRecord.id,
     values: embeddings[idx],
@@ -78,14 +72,12 @@ export async function processDocumentIngestion({ documentId, userId, extractedTe
       userId,
       documentId,
       chunkIndex: chunkRecord.chunkIndex,
-      content: chunkRecord.content.slice(0, 1000), // metadata safety bound
+      content: chunkRecord.content.slice(0, 1000),
     },
   }));
 
-  // 5. Upsert vectors into Pinecone under user's namespace
   await upsertVectors(vectors, userId);
 
-  // 6. Save pineconeVectorId back to DocumentChunk in Postgres
   await Promise.all(
     chunkRecords.map((chunkRecord) =>
       prisma.documentChunk.update({
@@ -95,7 +87,6 @@ export async function processDocumentIngestion({ documentId, userId, extractedTe
     )
   );
 
-  // 7. Update Document status to READY
   return await updateDocumentStatus(documentId, {
     status: 'READY',
     textLength,
@@ -135,6 +126,10 @@ export async function getDocumentById(id) {
 
 /**
  * Deletes a document if owned by the specifying user.
+ *
+ * FIX: Now also deletes the document's vectors from Pinecone BEFORE deleting
+ * the Postgres records, so vectors never stay orphaned in the index.
+ * Uses the same namespace convention (userId) established in Phase 4's upsert.
  */
 export async function deleteDocument(id, userId) {
   const document = await prisma.document.findUnique({
@@ -153,6 +148,33 @@ export async function deleteDocument(id, userId) {
     throw error;
   }
 
+  // 1. Find all chunk records for this document to get their Pinecone vector IDs
+  const chunks = await prisma.documentChunk.findMany({
+    where: { documentId: id },
+    select: { pineconeVectorId: true },
+  });
+
+  const vectorIds = chunks
+    .map((c) => c.pineconeVectorId)
+    .filter((vid) => typeof vid === 'string' && vid.length > 0);
+
+  // 2. Delete those vectors from Pinecone (same userId namespace used at upsert time)
+  if (vectorIds.length > 0) {
+    try {
+      await deleteVectors(vectorIds, userId);
+    } catch (error) {
+      // Don't block document deletion if Pinecone cleanup fails — log it clearly
+      // so it's visible, but the user's intent (delete the document) still succeeds.
+      console.error(`Failed to delete ${vectorIds.length} Pinecone vectors for document ${id}:`, error.message);
+    }
+  }
+
+  // 3. Delete DocumentChunk rows explicitly (in case there's no DB-level cascade configured)
+  await prisma.documentChunk.deleteMany({
+    where: { documentId: id },
+  });
+
+  // 4. Delete the Document record itself
   await prisma.document.delete({
     where: { id },
   });

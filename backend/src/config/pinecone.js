@@ -22,17 +22,15 @@ export async function checkPineconeConnection() {
     }
     const pc = getPineconeClient();
     const indexName = env.pineconeIndexName;
-    
-    // Check existing indexes
+
     const response = await pc.listIndexes();
     const indexes = response.indexes || [];
     const indexExists = indexes.some((idx) => idx.name === indexName);
-
     if (!indexExists) {
       console.log(`Pinecone index "${indexName}" not found. Initializing creation...`);
       await pc.createIndex({
         name: indexName,
-        dimension: 768, // Finalized in Phase 4: matches Google Gemini text-embedding-004
+        dimension: 768,
         metric: 'cosine',
         spec: {
           serverless: {
@@ -43,7 +41,6 @@ export async function checkPineconeConnection() {
       });
       console.log(`Pinecone index "${indexName}" created successfully.`);
     }
-
     return true;
   } catch (error) {
     console.error('Pinecone connection error:', error.message);
@@ -51,9 +48,6 @@ export async function checkPineconeConnection() {
   }
 }
 
-/**
- * Returns a reference handle to the configured Pinecone index.
- */
 export function getPineconeIndex() {
   const pc = getPineconeClient();
   return pc.index(env.pineconeIndexName);
@@ -61,51 +55,60 @@ export function getPineconeIndex() {
 
 /**
  * Upserts vector records with metadata into Pinecone.
- *
- * @param {Array<{ id: string, values: number[], metadata: object }>} vectors - Vector objects array.
- * @param {string} [namespace=''] - Namespace to isolate vectors (e.g. userId).
- * @returns {Promise<string[]>} Array of upserted vector IDs.
  */
 export async function upsertVectors(vectors, namespace = '') {
   if (!Array.isArray(vectors) || vectors.length === 0) {
     return [];
   }
-
   const index = getPineconeIndex();
   const target = namespace ? index.namespace(namespace) : index;
-
   await target.upsert(vectors);
   return vectors.map((v) => v.id);
 }
 
 /**
- * Queries Pinecone for nearest vector matches under a specified namespace.
- * Added in Phase 5.
+ * Queries Pinecone for the Top-K most similar vectors to a query embedding.
+ * Added in Phase 5, restored here after being accidentally dropped in a later fix.
  *
- * @param {number[]} queryVector - The 768-d query embedding vector.
- * @param {string} [namespace=''] - Namespace to query within (e.g. userId).
- * @param {number} [topK=8] - Number of top matches to return.
- * @param {object} [filter=null] - Optional metadata filter (e.g. documentId filtering).
- * @returns {Promise<Array<{ id: string, score: number, metadata: object }>>} Array of matching objects.
+ * @param {number[]} queryEmbedding - The query vector (768-d).
+ * @param {string} [namespace=''] - Namespace to search within (userId).
+ * @param {number} [topK=8] - Number of top matches to retrieve.
+ * @param {object} [filter=undefined] - Optional Pinecone metadata filter (e.g. { documentId: { $in: [...] } }).
+ * @returns {Promise<Array<{ id: string, score: number, metadata: object }>>}
  */
-export async function queryVectors(queryVector, namespace = '', topK = 8, filter = null) {
-  if (!queryVector || !Array.isArray(queryVector)) {
-    return [];
-  }
-
+export async function queryVectors(queryEmbedding, namespace = '', topK = 8, filter = undefined) {
   const index = getPineconeIndex();
   const target = namespace ? index.namespace(namespace) : index;
 
-  const queryOptions = {
-    vector: queryVector,
+  const queryRequest = {
+    vector: queryEmbedding,
     topK,
     includeMetadata: true,
+    includeValues: false,
   };
 
-  if (filter && Object.keys(filter).length > 0) {
-    queryOptions.filter = filter;
+  if (filter) {
+    queryRequest.filter = filter;
   }
 
-  const response = await target.query(queryOptions);
-  return response.matches || [];
+  const result = await target.query(queryRequest);
+  return result.matches || [];
+}
+
+/**
+ * Deletes vector records by ID from a given namespace.
+ * Used when a document is deleted, so its chunks' vectors don't stay
+ * orphaned in Pinecone after the corresponding Postgres rows are gone.
+ *
+ * @param {string[]} ids - Array of vector IDs to delete.
+ * @param {string} [namespace=''] - Namespace the vectors live in (userId).
+ */
+export async function deleteVectors(ids, namespace = '') {
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return { deleted: 0 };
+  }
+  const index = getPineconeIndex();
+  const target = namespace ? index.namespace(namespace) : index;
+  await target.deleteMany(ids);
+  return { deleted: ids.length };
 }
