@@ -18,14 +18,16 @@ model User {
 }
 
 model Document {
-  id        String          @id @default(uuid())
-  userId    String
-  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name      String
-  mimeType  String
-  status    String          @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
-  createdAt DateTime        @default(now())
-  chunks    DocumentChunk[]
+  id         String          @id @default(uuid())
+  userId     String
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  mimeType   String
+  status     String          @default("PENDING") // PENDING, PROCESSING, COMPLETED, READY, FAILED
+  fileSize   Int?
+  textLength Int?
+  createdAt  DateTime        @default(now())
+  chunks     DocumentChunk[]
 }
 
 model DocumentChunk {
@@ -37,7 +39,7 @@ model DocumentChunk {
   content          String
   chunkIndex       Int
   pageNumber       Int?
-  pineconeVectorId String   // Reference ID to the vector stored in Pinecone
+  pineconeVectorId String?  // Reference ID to the vector stored in Pinecone
   createdAt        DateTime @default(now())
 
   @@index([documentId])

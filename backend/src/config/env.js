@@ -9,4 +9,7 @@ export const env = {
   pineconeIndexName: process.env.PINECONE_INDEX_NAME || 'study-vault-index',
   jwtSecret: process.env.JWT_SECRET || 'change_this_secret_in_production',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
+  maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '10485760', 10),
+  uploadTempDir: process.env.UPLOAD_TEMP_DIR || 'uploads/temp',
 };
+

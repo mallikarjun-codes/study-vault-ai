@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
-import { useNavigate } from 'react-router-dom';
-import { BookOpen, LogOut, User, Cpu } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { BookOpen, LogOut, User, Cpu, FileText, ArrowRight, LayoutDashboard } from 'lucide-react';
 
 export default function DashboardPage() {
   const { user, logout } = useAuth();
@@ -17,12 +17,31 @@ export default function DashboardPage() {
       {/* Top Nav */}
       <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
-              <BookOpen className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-bold text-white text-sm tracking-tight">Study Vault AI</span>
+          <div className="flex items-center gap-6">
+            <Link to="/dashboard" className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+                <BookOpen className="w-4 h-4 text-white" />
+              </div>
+              <span className="font-bold text-white text-sm tracking-tight">Study Vault AI</span>
+            </Link>
+            <nav className="flex items-center gap-1">
+              <Link
+                to="/dashboard"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-blue-400 bg-blue-500/10 border border-blue-500/20"
+              >
+                <LayoutDashboard className="w-3.5 h-3.5" />
+                Dashboard
+              </Link>
+              <Link
+                to="/documents"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                Documents
+              </Link>
+            </nav>
           </div>
+
           <button
             id="logout-btn"
             onClick={handleLogout}
@@ -47,6 +66,18 @@ export default function DashboardPage() {
               Welcome, {user?.name}!
             </h1>
             <p className="text-slate-400 text-sm mt-1">{user?.email}</p>
+
+            {/* Quick Action Button to Documents */}
+            <div className="mt-5">
+              <Link
+                to="/documents"
+                className="inline-flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold rounded-xl transition-all shadow-md shadow-blue-500/20"
+              >
+                <FileText className="w-4 h-4" />
+                Manage Documents Vault
+                <ArrowRight className="w-3.5 h-3.5 ml-auto" />
+              </Link>
+            </div>
           </div>
 
           {/* Phase Indicator */}
@@ -59,7 +90,7 @@ export default function DashboardPage() {
               {[
                 { label: 'Phase 1 — Infrastructure', done: true },
                 { label: 'Phase 2 — Authentication', done: true },
-                { label: 'Phase 3 — File Upload & Extraction', done: false },
+                { label: 'Phase 3 — File Upload & Extraction', done: true },
                 { label: 'Phase 4 — Embeddings & Pinecone', done: false },
                 { label: 'Phase 5 — RAG Chat Engine', done: false },
                 { label: 'Phase 6 — Polish & Deploy', done: false },
@@ -80,3 +111,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

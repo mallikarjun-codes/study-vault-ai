@@ -66,6 +66,11 @@ export async function loginUser({ email, password }) {
  * @returns {object} user without passwordHash
  */
 export async function getUserById(userId) {
+  if (!userId) {
+    const error = new Error('User ID is required');
+    error.statusCode = 400;
+    throw error;
+  }
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { id: true, name: true, email: true, createdAt: true },

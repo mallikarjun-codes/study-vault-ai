@@ -16,6 +16,9 @@ export function authMiddleware(req, res, next) {
 
   try {
     const decoded = verifyToken(token);
+    if (!decoded || !decoded.id) {
+      return res.status(401).json({ error: 'Invalid token payload. Authorization denied.' });
+    }
     req.user = { id: decoded.id, email: decoded.email };
     next();
   } catch (err) {
