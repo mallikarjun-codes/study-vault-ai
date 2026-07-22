@@ -10,6 +10,15 @@ const api = axios.create({
   timeout: 10000,
 });
 
+// Attach token on every request if present
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('sv_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 export async function fetchHealthStatus() {
   try {
     const response = await api.get('/health');
